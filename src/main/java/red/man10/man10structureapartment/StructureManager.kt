@@ -21,6 +21,7 @@ import java.time.ZoneOffset
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.math.max
 import kotlin.math.min
 
@@ -74,7 +75,17 @@ object StructureManager {
         addressMap.values.forEach {
             saveStructure(it.owner)
         }
-        thread.shutdownNow()
+        //キューに積まれた保存処理が終わるのを待つ
+        thread.shutdown()
+        try {
+            if (!thread.awaitTermination(30, TimeUnit.SECONDS)){
+                Bukkit.getLogger().warning("保存処理が時間内に終わりませんでした")
+                thread.shutdownNow()
+            }
+        }catch (e:InterruptedException){
+            thread.shutdownNow()
+            Thread.currentThread().interrupt()
+        }
     }
 
     //初期建築の読み込み
