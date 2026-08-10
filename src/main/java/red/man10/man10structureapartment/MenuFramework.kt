@@ -32,6 +32,8 @@ open class MenuFramework(val p:Player,private val menuSize: Int, private val tit
     lateinit var menu : Inventory
     private var closeAction : OnCloseListener? = null
     private var clickAction : Button.OnClickListener? = null
+    //このメニューが登録したボタンのキー(破棄時にbuttonMapから消すため)
+    private val buttonKeys = mutableListOf<String>()
 
     companion object{
         private val menuStack = HashMap<UUID,Stack<MenuFramework>>()
@@ -70,6 +72,12 @@ open class MenuFramework(val p:Player,private val menuSize: Int, private val tit
             return stack.peek()
         }
 
+        //      プレイヤーのスタックを丸ごと破棄する(ログアウト時など)
+        fun clearStack(p:Player){
+            val stack = menuStack.remove(p.uniqueId)?:return
+            stack.forEach { it.dispose() }
+        }
+
         fun dispatch(plugin:JavaPlugin,job:()->Unit){
             Bukkit.getScheduler().runTask(plugin, Runnable(job))
         }
@@ -90,11 +98,13 @@ open class MenuFramework(val p:Player,private val menuSize: Int, private val tit
     //slotは0スタート
     fun setButton(button: Button, slot:Int){
         menu.setItem(slot,button.icon())
+        buttonKeys.add(button.key)
     }
 
     //
     fun addButton(button:Button){
         menu.addItem(button.icon())
+        buttonKeys.add(button.key)
     }
 
     //背景として全埋めする
@@ -115,9 +125,17 @@ open class MenuFramework(val p:Player,private val menuSize: Int, private val tit
     fun close(e:InventoryCloseEvent){
         closeAction?.closeAction(e)
         if (e.reason == InventoryCloseEvent.Reason.PLAYER){
-            pop(p)//ひとつ前のメニューに戻るためにスタックを一個削除
-            pop(p)?.open()
+            pop(p)?.dispose()//ひとつ前のメニューに戻るためにスタックを一個削除
+            val previous = pop(p)?:return
+            previous.dispose()//開き直すと新しいボタンが作られるので古いものを破棄
+            previous.open()
         }
+    }
+
+    //登録済みのボタンを破棄する
+    fun dispose(){
+        buttonKeys.forEach { Button.remove(it) }
+        buttonKeys.clear()
     }
 
     fun interface OnCloseListener{
@@ -128,7 +146,7 @@ open class MenuFramework(val p:Player,private val menuSize: Int, private val tit
 
         private var buttonItem : ItemStack
         private var actionData : OnClickListener? = null
-        private val key = UUID.randomUUID().toString()
+        val key = UUID.randomUUID().toString()
 
         init {
             buttonItem = ItemStack(icon)
@@ -144,6 +162,10 @@ open class MenuFramework(val p:Player,private val menuSize: Int, private val tit
 
             fun set(button: Button){
                 buttonMap[button.key] = button
+            }
+
+            fun remove(key:String){
+                buttonMap.remove(key)
             }
 
             fun get(item:ItemStack): Button?{

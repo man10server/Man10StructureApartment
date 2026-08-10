@@ -17,10 +17,10 @@ import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.ZoneOffset
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.math.max
 import kotlin.math.min
 
@@ -74,7 +74,17 @@ object StructureManager {
         addressMap.values.forEach {
             saveStructure(it.owner)
         }
-        thread.shutdownNow()
+        //キューに積まれた保存処理が終わるのを待つ
+        thread.shutdown()
+        try {
+            if (!thread.awaitTermination(30, TimeUnit.SECONDS)){
+                Bukkit.getLogger().warning("保存処理が時間内に終わりませんでした")
+                thread.shutdownNow()
+            }
+        }catch (e:InterruptedException){
+            thread.shutdownNow()
+            Thread.currentThread().interrupt()
+        }
     }
 
     //初期建築の読み込み
@@ -293,14 +303,20 @@ object StructureManager {
 
     fun addPayment(p:Player,day:Int){
 
+        if (day <= 0){
+            msg(p,"§c日数は1以上を指定してください")
+            return
+        }
+
         val data = addressMap[p.uniqueId]
 
         if (data==null){
             thread.execute {
                 if (!placeStructure(p.uniqueId)){
                     p.sendMessage("§c現在アパートは満室です")
+                }else{
+                    p.sendMessage("§aアパートを確保しました。もう一度クリックしてください")
                 }
-                p.sendMessage("§aアパートを確保しました。もう一度クリックしてください")
             }
             return
         }
@@ -315,7 +331,7 @@ object StructureManager {
             date = LocalDateTime.now()
         }
         date = date.plusDays(day.toLong())
-        data.rentDue = Date.from(date.toInstant(ZoneOffset.of("+9")))
+        data.rentDue = Date.from(date.atZone(ZoneId.systemDefault()).toInstant())
 
         addressMap[p.uniqueId] = data
         saveAddress()
