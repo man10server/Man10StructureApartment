@@ -57,11 +57,11 @@ class Man10StructureApartment : JavaPlugin(),Listener {
         StructureManager.pluginClose()
     }
 
-    override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>?): Boolean {
+    override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
 
         if (sender !is Player)return true
 
-        if (args.isNullOrEmpty()){
+        if (args.isEmpty()){
 
             MainMenu(sender).open()
             return true
