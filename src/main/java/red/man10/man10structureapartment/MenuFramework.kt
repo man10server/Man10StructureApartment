@@ -124,6 +124,8 @@ open class MenuFramework(val p:Player,private val menuSize: Int, private val tit
 
     fun close(e:InventoryCloseEvent){
         closeAction?.closeAction(e)
+        //閉じられたInventoryが自分のものでない場合、別のメニューをpopしてしまうので何もしない
+        if (!this::menu.isInitialized || e.inventory != menu)return
         if (e.reason == InventoryCloseEvent.Reason.PLAYER){
             pop(p)?.dispose()//ひとつ前のメニューに戻るためにスタックを一個削除
             val previous = pop(p)?:return
