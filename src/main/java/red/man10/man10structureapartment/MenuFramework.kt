@@ -212,7 +212,7 @@ open class MenuFramework(val p:Player,private val menuSize: Int, private val tit
                 return this
             }
 
-            meta.addEnchant(Enchantment.LUCK,1,false)
+            meta.addEnchant(Enchantment.LUCK_OF_THE_SEA,1,false)
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS)
             buttonItem.itemMeta = meta
             set(this)
