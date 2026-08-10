@@ -17,7 +17,6 @@ import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.ZoneOffset
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -332,7 +331,7 @@ object StructureManager {
             date = LocalDateTime.now()
         }
         date = date.plusDays(day.toLong())
-        data.rentDue = Date.from(date.toInstant(ZoneOffset.of("+9")))
+        data.rentDue = Date.from(date.atZone(ZoneId.systemDefault()).toInstant())
 
         addressMap[p.uniqueId] = data
         saveAddress()
