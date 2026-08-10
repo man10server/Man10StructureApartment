@@ -304,6 +304,11 @@ object StructureManager {
 
     fun addPayment(p:Player,day:Int){
 
+        if (day <= 0){
+            msg(p,"§c日数は1以上を指定してください")
+            return
+        }
+
         val data = addressMap[p.uniqueId]
 
         if (data==null){
