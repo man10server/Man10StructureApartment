@@ -54,15 +54,16 @@ object StructureManager {
         instance.saveDefaultConfig()
         instance.reloadConfig()
 
-        distance = instance.config.getInt("Distance")
-        maxApartCount = instance.config.getInt("MaxApartCount")
-        dailyRent = instance.config.getDouble("DailyRent")
+        //古い設定ファイルにキーが無い場合に0にならないよう、既定値を明示する
+        distance = instance.config.getInt("Distance",64)
+        maxApartCount = instance.config.getInt("MaxApartCount",128)
+        dailyRent = instance.config.getDouble("DailyRent",1000.0)
         world = instance.server.getWorld(instance.config.getString("BuilderWorld")?:"world")!!
         backCommand = instance.config.getString("BackCommand")?:""
 
-        val relativeX = instance.config.getDouble("RelativeX")
-        val relativeY = instance.config.getDouble("RelativeY")
-        val relativeZ = instance.config.getDouble("RelativeZ")
+        val relativeX = instance.config.getDouble("RelativeX",0.0)
+        val relativeY = instance.config.getDouble("RelativeY",1.0)
+        val relativeZ = instance.config.getDouble("RelativeZ",0.0)
 
         jumpOffset = Triple(relativeX,relativeY,relativeZ)
 
