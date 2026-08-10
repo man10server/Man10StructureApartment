@@ -80,7 +80,7 @@ class Man10StructureApartment : JavaPlugin(),Listener {
             "place" ->{
                 if (!sender.hasPermission(PERMISSION))return true
 
-                val uuid = UUID.fromString(args[1])
+                val uuid = parseUUID(sender,args,1)?:return true
 
                 thread.execute {
                     val ret = StructureManager.placeStructure(uuid,sender.location)
@@ -93,7 +93,7 @@ class Man10StructureApartment : JavaPlugin(),Listener {
             "save" ->{
                 if (!sender.hasPermission(PERMISSION))return true
 
-                val uuid = UUID.fromString(args[1])
+                val uuid = parseUUID(sender,args,1)?:return true
 
                 saveStructure(uuid,op = true)
 
@@ -103,7 +103,7 @@ class Man10StructureApartment : JavaPlugin(),Listener {
             "backup" ->{
                 if (!sender.hasPermission(PERMISSION))return true
 
-                val uuid = UUID.fromString(args[1])
+                val uuid = parseUUID(sender,args,1)?:return true
 
                 thread.execute {
                     val list = StructureManager.getBackupList(uuid)
@@ -124,8 +124,8 @@ class Man10StructureApartment : JavaPlugin(),Listener {
             "restore" ->{
                 if (!sender.hasPermission(PERMISSION))return true
 
-                val uuid = UUID.fromString(args[1])
-                val index = args[2].toInt()
+                val uuid = parseUUID(sender,args,1)?:return true
+                val index = parseInt(sender,args,2)?:return true
 
                 msg(sender,"復元中")
                 thread.execute {
@@ -135,7 +135,7 @@ class Man10StructureApartment : JavaPlugin(),Listener {
             }
 
             "pay" ->{
-                val day = args[1].toInt()
+                val day = parseInt(sender,args,1)?:return true
                 StructureManager.addPayment(sender,day)
             }
 
@@ -154,6 +154,36 @@ class Man10StructureApartment : JavaPlugin(),Listener {
         }
 
         return true
+    }
+
+    //引数からUUIDを取り出す(不正な場合はnullを返してエラーを表示)
+    private fun parseUUID(sender:Player,args:Array<out String>,index:Int): UUID? {
+
+        if (args.size <= index){
+            msg(sender,"§cUUIDを指定してください")
+            return null
+        }
+
+        return try {
+            UUID.fromString(args[index])
+        }catch (e:IllegalArgumentException){
+            msg(sender,"§cUUIDの形式が正しくありません:${args[index]}")
+            null
+        }
+    }
+
+    //引数から数値を取り出す(不正な場合はnullを返してエラーを表示)
+    private fun parseInt(sender:Player,args:Array<out String>,index:Int): Int? {
+
+        if (args.size <= index){
+            msg(sender,"§c数値を指定してください")
+            return null
+        }
+
+        return args[index].toIntOrNull() ?: run {
+            msg(sender,"§c数値の形式が正しくありません:${args[index]}")
+            null
+        }
     }
 
     @EventHandler
