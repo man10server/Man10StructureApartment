@@ -190,6 +190,7 @@ class Man10StructureApartment : JavaPlugin(),Listener {
     fun logout(e:PlayerQuitEvent){
 
         StructureManager.exit(e.player)
+        MenuFramework.clearStack(e.player)
         saveStructure(e.player.uniqueId)
     }
 
