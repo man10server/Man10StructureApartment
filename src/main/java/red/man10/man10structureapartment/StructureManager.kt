@@ -387,6 +387,8 @@ object StructureManager {
         if (livingList.contains(p.uniqueId)){
             exit(p)
             p.performCommand(backCommand)
+            //戻るコマンドでプレイヤーが範囲外に出てから保存する
+            Bukkit.getScheduler().runTask(instance, Runnable { saveStructure(p.uniqueId) })
             return
         }
 
