@@ -58,7 +58,7 @@ object StructureManager {
         distance = instance.config.getInt("Distance",64)
         maxApartCount = instance.config.getInt("MaxApartCount",128)
         dailyRent = instance.config.getDouble("DailyRent",1000.0)
-        world = instance.server.getWorld(instance.config.getString("BuilderWorld")?:"world")!!
+        world = loadWorld()
         backCommand = instance.config.getString("BackCommand")?:""
 
         val relativeX = instance.config.getDouble("RelativeX",0.0)
@@ -69,6 +69,16 @@ object StructureManager {
 
         loadDefault()
         loadAddress()
+    }
+
+    //建築用ワールドの読み込み。見つからない場合はサーバーの既定ワールドで代用する
+    private fun loadWorld(): World {
+        val name = instance.config.getString("BuilderWorld")?:"world"
+        val target = instance.server.getWorld(name)
+        if (target != null)return target
+
+        Bukkit.getLogger().warning("建築用ワールド($name)が見つかりません。BuilderWorldの設定を確認してください")
+        return instance.server.worlds.first()
     }
 
     fun pluginClose(){
