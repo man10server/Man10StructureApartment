@@ -83,8 +83,7 @@ class Man10StructureApartment : JavaPlugin(),Listener {
 
                 val uuid = parseUUID(sender,args,1)?:return true
 
-                thread.execute {
-                    val ret = StructureManager.placeStructure(uuid,sender.location)
+                StructureManager.placeStructure(uuid,sender.location){ ret ->
                     if (ret){
                         msg(sender,"設置完了しました。内容変更があった場合は/msa save ${uuid}を打ってください")
                     }
