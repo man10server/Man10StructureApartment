@@ -310,8 +310,9 @@ object StructureManager {
             thread.execute {
                 if (!placeStructure(p.uniqueId)){
                     p.sendMessage("§c現在アパートは満室です")
+                }else{
+                    p.sendMessage("§aアパートを確保しました。もう一度クリックしてください")
                 }
-                p.sendMessage("§aアパートを確保しました。もう一度クリックしてください")
             }
             return
         }
