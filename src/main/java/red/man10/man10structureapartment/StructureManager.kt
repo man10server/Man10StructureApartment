@@ -333,7 +333,8 @@ object StructureManager {
         Bukkit.getLogger().info("エンティティを削除")
     }
 
-    fun addPayment(p:Player,day:Int){
+    //  retryはアパートの確保後に呼び直したかどうか(確保しても住所が無い場合に無限に繰り返さないため)
+    fun addPayment(p:Player,day:Int,retry:Boolean = true){
 
         if (day <= 0){
             msg(p,"§c日数は1以上を指定してください")
@@ -342,12 +343,19 @@ object StructureManager {
 
         val data = addressMap[p.uniqueId]
 
+        //初回はアパートを確保してから、そのまま支払いに進む
         if (data==null){
+            if (!retry){
+                msg(p,"§cアパートの用意に失敗しました")
+                return
+            }
+            msg(p,"§a§lアパートを用意しています...")
             placeStructure(p.uniqueId){ success ->
+                if (!p.isOnline)return@placeStructure
                 if (!success){
-                    p.sendMessage("§c現在アパートは満室です")
+                    msg(p,"§c現在アパートは満室です")
                 }else{
-                    p.sendMessage("§aアパートを確保しました。もう一度クリックしてください")
+                    addPayment(p,day,retry = false)
                 }
             }
             return
@@ -372,7 +380,8 @@ object StructureManager {
         msg(p,"§e§l利用料の支払いを行いました(利用可能期間:${SimpleDateFormat("MM月dd日").format(data.rentDue)}まで)")
     }
 
-    fun jump(p:Player){
+    //  retryはアパートの確保後に呼び直したかどうか(確保しても住所が無い場合に無限に繰り返さないため)
+    fun jump(p:Player,retry:Boolean = true){
 
         //マンションにいたら戻る
         if (livingList.contains(p.uniqueId)){
@@ -383,12 +392,19 @@ object StructureManager {
 
         val data = addressMap[p.uniqueId]
 
+        //初回はアパートを確保してから、そのままジャンプを試みる
         if (data == null){
+            if (!retry){
+                msg(p,"§cアパートの用意に失敗しました")
+                return
+            }
+            msg(p,"§a§lアパートを用意しています...")
             placeStructure(p.uniqueId){ success ->
+                if (!p.isOnline)return@placeStructure
                 if (!success){
                     msg(p,"§c現在アパートは満室です")
                 }else{
-                    msg(p,"§c§lもう一度クリックしてください")
+                    jump(p,retry = false)
                 }
             }
             return
@@ -396,6 +412,7 @@ object StructureManager {
 
         if (Date().after(data.rentDue)){
             msg(p,"§c§l利用料の支払いがされていません！")
+            msg(p,"§c§l/msa からメニューを開いて利用料を支払ってください")
             return
         }
 
