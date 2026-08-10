@@ -72,9 +72,10 @@ class Man10StructureApartment : JavaPlugin(),Listener {
 
             "reload" ->{
                 if (!sender.hasPermission(PERMISSION))return true
-                Thread{
+                //Bukkit APIを触るので必ずメインスレッドで実行する
+                Bukkit.getScheduler().runTask(this, Runnable {
                     pluginLoad()
-                }.start()
+                })
             }
 
             "place" ->{
