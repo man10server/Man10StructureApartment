@@ -108,6 +108,15 @@ object StructureManager {
             return
         }
         defaultBuilding = manager.loadStructure(default)
+
+        //  部屋はX方向にDistance間隔で並ぶため、幅がDistanceを超えると隣の部屋と範囲が重なる。
+        //  設置時に範囲内のブロックを消すので、そのままだと隣の建物を巻き込んで削除してしまう。
+        val width = defaultBuilding.size.x
+        if (width > distance){
+            Bukkit.getLogger().warning("初期建築の幅($width)がDistance($distance)を超えています")
+            Bukkit.getLogger().warning("隣の部屋と範囲が重なり、設置時に隣の建物が削除されます。Distanceを大きくしてください")
+        }
+
         Bukkit.getLogger().info("初期建築を読み込みました")
     }
 
