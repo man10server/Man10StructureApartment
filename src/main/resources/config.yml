@@ -1,3 +1,19 @@
-Distance: 64
-MaxApartCount: 128
+#部屋を配置するワールド名
 BuilderWorld: world
+
+#部屋どうしのX方向の間隔(部屋の幅より大きくする)
+Distance: 64
+
+#同時に開ける部屋数の上限
+MaxApartCount: 128
+
+#1日あたりの利用料
+DailyRent: 1000.0
+
+#部屋から出るときに実行するコマンド(先頭の/は不要)
+BackCommand: spawn
+
+#部屋の原点から見たテレポート先の相対座標
+RelativeX: 0.0
+RelativeY: 1.0
+RelativeZ: 0.0

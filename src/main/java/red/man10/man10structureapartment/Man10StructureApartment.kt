@@ -1,11 +1,9 @@
 package red.man10.man10structureapartment
 
-import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.event.HoverEvent
 import org.bukkit.Bukkit
-import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
@@ -25,7 +23,6 @@ import red.man10.man10structureapartment.StructureManager.thread
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.UUID
-import java.util.concurrent.Executors
 
 class Man10StructureApartment : JavaPlugin(),Listener {
 
@@ -83,8 +80,7 @@ class Man10StructureApartment : JavaPlugin(),Listener {
 
                 val uuid = parseUUID(sender,args,1)?:return true
 
-                thread.execute {
-                    val ret = StructureManager.placeStructure(uuid,sender.location)
+                StructureManager.placeStructure(uuid,sender.location){ ret ->
                     if (ret){
                         msg(sender,"設置完了しました。内容変更があった場合は/msa save ${uuid}を打ってください")
                     }

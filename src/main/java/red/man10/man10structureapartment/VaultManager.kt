@@ -31,15 +31,24 @@ class VaultManager(private val plugin: JavaPlugin) {
     /////////////////////////////////////
     fun getBalance(uuid: UUID?): Double {
 
-        return economy!!.getBalance(Bukkit.getOfflinePlayer(uuid!!))
+        if (uuid == null)return 0.0
+        val eco = economy ?: run {
+            Bukkit.getLogger().warning("Economy is not available (Vault plugin is not installed?)")
+            return 0.0
+        }
+        return eco.getBalance(Bukkit.getOfflinePlayer(uuid))
     }
 
     /////////////////////////////////////
     //      引き出し
     /////////////////////////////////////
     fun withdraw(uuid: UUID, money: Double): Boolean {
+        val eco = economy ?: run {
+            Bukkit.getLogger().warning("Economy is not available (Vault plugin is not installed?)")
+            return false
+        }
         val p = Bukkit.getOfflinePlayer(uuid)
-        val resp = economy!!.withdrawPlayer(p, money)
+        val resp = eco.withdrawPlayer(p, money)
         if (resp.transactionSuccess()) {
             if (p.isOnline) {
 //                Utility.msg(p.player!!,"§e§l電子マネーを${Utility.format(money)}円支払いました")
@@ -53,8 +62,12 @@ class VaultManager(private val plugin: JavaPlugin) {
     //      お金を入れる
     /////////////////////////////////////
     fun deposit(uuid: UUID, money: Double): Boolean {
+        val eco = economy ?: run {
+            Bukkit.getLogger().warning("Economy is not available (Vault plugin is not installed?)")
+            return false
+        }
         val p = Bukkit.getOfflinePlayer(uuid)
-        val resp = economy!!.depositPlayer(p, money)
+        val resp = eco.depositPlayer(p, money)
         if (resp.transactionSuccess()) {
             if (p.isOnline) {
 //                Utility.msg(p.player!!,"§e§l電子マネーを${Utility.format(money)}円受け取りました")

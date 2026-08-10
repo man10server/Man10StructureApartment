@@ -38,6 +38,8 @@ object StructureManager {
 
     private var addressMap = ConcurrentHashMap<UUID,ApartData>()
     private val livingList = mutableListOf<UUID>()
+    //設置処理中でまだ住所登録されていない座標(メインスレッドからのみ触る)
+    private val reservedX = mutableSetOf<Double>()
     private lateinit var manager : StructureManager
     private lateinit var defaultBuilding : Structure
     private lateinit var vault : VaultManager
@@ -52,20 +54,31 @@ object StructureManager {
         instance.saveDefaultConfig()
         instance.reloadConfig()
 
-        distance = instance.config.getInt("Distance")
-        maxApartCount = instance.config.getInt("MaxApartCount")
-        dailyRent = instance.config.getDouble("DailyRent")
-        world = instance.server.getWorld(instance.config.getString("BuilderWorld")?:"world")!!
+        //古い設定ファイルにキーが無い場合に0にならないよう、既定値を明示する
+        distance = instance.config.getInt("Distance",64)
+        maxApartCount = instance.config.getInt("MaxApartCount",128)
+        dailyRent = instance.config.getDouble("DailyRent",1000.0)
+        world = loadWorld()
         backCommand = instance.config.getString("BackCommand")?:""
 
-        val relativeX = instance.config.getDouble("RelativeX")
-        val relativeY = instance.config.getDouble("RelativeY")
-        val relativeZ = instance.config.getDouble("RelativeZ")
+        val relativeX = instance.config.getDouble("RelativeX",0.0)
+        val relativeY = instance.config.getDouble("RelativeY",1.0)
+        val relativeZ = instance.config.getDouble("RelativeZ",0.0)
 
         jumpOffset = Triple(relativeX,relativeY,relativeZ)
 
         loadDefault()
         loadAddress()
+    }
+
+    //建築用ワールドの読み込み。見つからない場合はサーバーの既定ワールドで代用する
+    private fun loadWorld(): World {
+        val name = instance.config.getString("BuilderWorld")?:"world"
+        val target = instance.server.getWorld(name)
+        if (target != null)return target
+
+        Bukkit.getLogger().warning("建築用ワールド($name)が見つかりません。BuilderWorldの設定を確認してください")
+        return instance.server.worlds.first()
     }
 
     fun pluginClose(){
@@ -159,6 +172,8 @@ object StructureManager {
             saveAddress()
         }
 
+        //  ワールドの読み取りはfill()で完了しており、以降はStructureのシリアライズとファイル書き込みのみ。
+        //  書き出しが重くメインスレッドを止めたくないため、あえて非同期のまま扱う。
         thread.execute {
 
             try {
@@ -192,37 +207,37 @@ object StructureManager {
         }
     }
 
-    //  ストラクチャーの呼び出し
-    //  ストラクチャーが生成できたらtrueを返す
-    @Synchronized
-    fun placeStructure(uuid:UUID,location: Location? = null):Boolean{
-
-        //アドレスがすでにある場合は建物があるとしてリターン
-//        if (addressMap[uuid]!=null){
-//            return true
-//        }
+    //  ストラクチャーの呼び出し(必ずメインスレッドで呼び出す)
+    //  空き部屋の確保・設置・住所登録はメインスレッド、ファイルの読み込みのみ非同期で行う
+    //  設置と住所登録が終わった時点でcallbackが(メインスレッドで)呼ばれる
+    fun placeStructure(uuid:UUID,location: Location? = null,callback:(Boolean)->Unit){
 
         var posX = -1.0
         //利用中の部屋のリスト
-        val filtered = addressMap.values.filter { Bukkit.getOfflinePlayer(it.owner).isOnline }
+        val filtered = addressMap.values.filter { Bukkit.getPlayer(it.owner) != null }
 
         Bukkit.getLogger().info("現在:${filtered.size}人が利用中")
 
-        if (filtered.size >= maxApartCount){
+        if (filtered.size + reservedX.size >= maxApartCount){
             Bukkit.getLogger().info("定員オーバー")
-            return false
+            callback(false)
+            return
         }
 
         //順番に探っていって、空き部屋を決定
         for (i in 0 until maxApartCount){
-            if (filtered.any { it.sx == (i * distance).toDouble() })continue
-            posX = (i * distance).toDouble()
+            val x = (i * distance).toDouble()
+            //確保中(住所登録前)の座標も使用中として扱う
+            if (reservedX.contains(x))continue
+            if (filtered.any { it.sx == x })continue
+            posX = x
             break
         }
 
         if (posX == -1.0){
             Bukkit.getLogger().info("アパートの確保に失敗")
-            return false
+            callback(false)
+            return
         }
 
         Bukkit.getLogger().info("アパートの確保に成功:sx=${posX}")
@@ -230,39 +245,56 @@ object StructureManager {
         //座標を設定
         val pos1 = location?:Location(world,posX, POS_Y, POS_Z)
 
+        reservedX.add(pos1.x)
 
-        val pos2 = pos1.clone()
+        //ファイルI/Oのみ非同期で行う
+        thread.execute {
 
-        val file = File("${instance.dataFolder.path}/Apart/${uuid}")
-
-        val structure = if (file.exists()){
-            //呼び出し前にバックアップをとっておく
-            val destination = File("${instance.dataFolder.path}/Apart/backup/${uuid}/${SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date(file.lastModified()))}")
-            if (!destination.exists())file.copyTo(destination)
-            manager.loadStructure(file)
-        } else {
-            val default = File("${instance.dataFolder.path}/Apart/Default")
-            if (!default.exists()){
-                return false
+            val structure = try {
+                val file = File("${instance.dataFolder.path}/Apart/${uuid}")
+                if (file.exists()){
+                    //呼び出し前にバックアップをとっておく
+                    val destination = File("${instance.dataFolder.path}/Apart/backup/${uuid}/${SimpleDateFormat("yyyy_MM_dd_HH_mm_ss").format(Date(file.lastModified()))}")
+                    if (!destination.exists())file.copyTo(destination)
+                    manager.loadStructure(file)
+                } else {
+                    val default = File("${instance.dataFolder.path}/Apart/Default")
+                    if (!default.exists()) null else manager.loadStructure(default)
+                }
+            }catch (e:Exception){
+                Bukkit.getLogger().warning("アパートの読み込みに失敗！(持ち主:$uuid)")
+                Bukkit.getLogger().warning(e.message)
+                null
             }
-            manager.loadStructure(default)
+
+            //設置と住所登録はメインスレッドで、必ず設置が終わってから住所を登録する
+            Bukkit.getScheduler().runTask(instance, Runnable {
+
+                reservedX.remove(pos1.x)
+
+                if (structure == null){
+                    callback(false)
+                    return@Runnable
+                }
+
+                val pos2 = pos1.clone()
+                pos2.x+=structure.size.x
+                pos2.y+=structure.size.y
+                pos2.z+=structure.size.z
+
+                place(pos1, pos2, structure)
+
+                val date = Date()
+                date.time = structure.persistentDataContainer[NamespacedKey(instance,"RentDue"), PersistentDataType.LONG]?:Date().time
+
+                //住所情報をJsonファイルに登録
+                updateAddress(ApartData(uuid, pos1.x,pos1.y,pos1.z, pos2.x,pos2.y,pos2.z, Date(),date))
+
+                Bukkit.getLogger().info("アパートの設置完了(現在のアパート数:${addressMap.size}")
+
+                callback(true)
+            })
         }
-
-        pos2.x+=structure.size.x
-        pos2.y+=structure.size.y
-        pos2.z+=structure.size.z
-
-        Bukkit.getScheduler().runTask(instance, Runnable { place(pos1, pos2, structure) })
-
-        val date = Date()
-        date.time = structure.persistentDataContainer[NamespacedKey(instance,"RentDue"), PersistentDataType.LONG]?:Date().time
-
-        //住所情報をJsonファイルに登録
-        updateAddress(ApartData(uuid, pos1.x,pos1.y,pos1.z, pos2.x,pos2.y,pos2.z, Date(),date))
-
-        Bukkit.getLogger().info("アパートの設置完了(現在のアパート数:${addressMap.size}")
-
-        return true
     }
 
     private fun place(pos1:Location,pos2:Location,structure: Structure){
@@ -301,7 +333,8 @@ object StructureManager {
         Bukkit.getLogger().info("エンティティを削除")
     }
 
-    fun addPayment(p:Player,day:Int){
+    //  retryはアパートの確保後に呼び直したかどうか(確保しても住所が無い場合に無限に繰り返さないため)
+    fun addPayment(p:Player,day:Int,retry:Boolean = true){
 
         if (day <= 0){
             msg(p,"§c日数は1以上を指定してください")
@@ -310,12 +343,19 @@ object StructureManager {
 
         val data = addressMap[p.uniqueId]
 
+        //初回はアパートを確保してから、そのまま支払いに進む
         if (data==null){
-            thread.execute {
-                if (!placeStructure(p.uniqueId)){
-                    p.sendMessage("§c現在アパートは満室です")
+            if (!retry){
+                msg(p,"§cアパートの用意に失敗しました")
+                return
+            }
+            msg(p,"§a§lアパートを用意しています...")
+            placeStructure(p.uniqueId){ success ->
+                if (!p.isOnline)return@placeStructure
+                if (!success){
+                    msg(p,"§c現在アパートは満室です")
                 }else{
-                    p.sendMessage("§aアパートを確保しました。もう一度クリックしてください")
+                    addPayment(p,day,retry = false)
                 }
             }
             return
@@ -340,7 +380,8 @@ object StructureManager {
         msg(p,"§e§l利用料の支払いを行いました(利用可能期間:${SimpleDateFormat("MM月dd日").format(data.rentDue)}まで)")
     }
 
-    fun jump(p:Player){
+    //  retryはアパートの確保後に呼び直したかどうか(確保しても住所が無い場合に無限に繰り返さないため)
+    fun jump(p:Player,retry:Boolean = true){
 
         //マンションにいたら戻る
         if (livingList.contains(p.uniqueId)){
@@ -351,12 +392,19 @@ object StructureManager {
 
         val data = addressMap[p.uniqueId]
 
+        //初回はアパートを確保してから、そのままジャンプを試みる
         if (data == null){
-            thread.execute {
-                if (!placeStructure(p.uniqueId)){
+            if (!retry){
+                msg(p,"§cアパートの用意に失敗しました")
+                return
+            }
+            msg(p,"§a§lアパートを用意しています...")
+            placeStructure(p.uniqueId){ success ->
+                if (!p.isOnline)return@placeStructure
+                if (!success){
                     msg(p,"§c現在アパートは満室です")
                 }else{
-                    msg(p,"§c§lもう一度クリックしてください")
+                    jump(p,retry = false)
                 }
             }
             return
@@ -364,6 +412,7 @@ object StructureManager {
 
         if (Date().after(data.rentDue)){
             msg(p,"§c§l利用料の支払いがされていません！")
+            msg(p,"§c§l/msa からメニューを開いて利用料を支払ってください")
             return
         }
 
