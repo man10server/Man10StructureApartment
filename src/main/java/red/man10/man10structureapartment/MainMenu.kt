@@ -12,25 +12,16 @@ class MainMenu(p: Player) : MenuFramework(p, 9, "§b§l[CloudApartment]") {
 
         fill(fill)
 
-        val rentButton = Button(Material.GOLD_INGOT)
-        rentButton.cmd(1)
-        rentButton.title("§e§l利用料を支払う(${StructureManager.dailyRent*30}円)")
-        rentButton.lore(mutableListOf("§f30日分のマンション利用料を支払います"
-            ,"§f30日を超えるとマンションの利用ができなくなります"))
-        rentButton.setClickAction{
-            p.performCommand("msa pay 30")
-        }
-
-        setButton(rentButton,2)
-
         val jumpButton = Button(Material.OAK_DOOR)
         jumpButton.title("§a§lマンションにテレポートする")
-        jumpButton.lore(mutableListOf("§fマンションにテレポートします","§e§l初めて入居する場合は左のボタンから利用料を払ってください"))
+        jumpButton.lore(mutableListOf("§fマンションにテレポートします"
+            ,"§e§l利用料が未払いの場合は30日分(${StructureManager.dailyRent*30}円)を支払います"
+            ,"§c§l電子マネーが足りない場合はテレポートできません"))
         jumpButton.setClickAction{
-            p.performCommand("msa jump")
+            StructureManager.payAndJump(p,30)
         }
 
-        setButton(jumpButton,6)
+        setButton(jumpButton,4)
     }
 
 }
