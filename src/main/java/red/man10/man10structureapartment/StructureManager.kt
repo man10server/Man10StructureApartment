@@ -344,10 +344,12 @@ object StructureManager {
     }
 
     //  retryはアパートの確保後に呼び直したかどうか(確保しても住所が無い場合に無限に繰り返さないため)
-    fun addPayment(p:Player,day:Int,retry:Boolean = true){
+    //  callbackは支払いが成立したかどうかを受け取る(プレイヤーがオフラインになった場合は呼ばれない)
+    fun addPayment(p:Player,day:Int,retry:Boolean = true,callback:(Boolean)->Unit = {}){
 
         if (day <= 0){
             msg(p,"§c日数は1以上を指定してください")
+            callback(false)
             return
         }
 
@@ -357,6 +359,7 @@ object StructureManager {
         if (data==null){
             if (!retry){
                 msg(p,"§cアパートの用意に失敗しました")
+                callback(false)
                 return
             }
             msg(p,"§a§lアパートを用意しています...")
@@ -364,8 +367,9 @@ object StructureManager {
                 if (!p.isOnline)return@placeStructure
                 if (!success){
                     msg(p,"§c現在アパートは満室です")
+                    callback(false)
                 }else{
-                    addPayment(p,day,retry = false)
+                    addPayment(p,day,retry = false,callback = callback)
                 }
             }
             return
@@ -375,11 +379,13 @@ object StructureManager {
         //  部屋の確保直後はrentDueが確保時刻そのものなので、未来の場合だけを弾く
         if (data.rentDue.after(Date())){
             msg(p,"§c§l利用可能期間が残っているため支払いできません(利用可能期間:${SimpleDateFormat("MM月dd日").format(data.rentDue)}まで)")
+            callback(false)
             return
         }
 
         if (!vault.withdraw(p.uniqueId,day* dailyRent)){
             msg(p,"§c電子マネーが足りません")
+            callback(false)
             return
         }
 
@@ -395,6 +401,33 @@ object StructureManager {
         saveStructure(p.uniqueId)
 
         msg(p,"§e§l利用料の支払いを行いました(利用可能期間:${SimpleDateFormat("MM月dd日").format(data.rentDue)}まで)")
+
+        callback(true)
+    }
+
+    //  メニューのボタン用。利用料が未払いなら支払いを済ませてからテレポートする
+    //  支払いに失敗した場合(残高不足・満室など)はテレポートしない
+    fun payAndJump(p:Player,day:Int){
+
+        //部屋の中にいるときは戻る処理をjumpに任せる
+        if (livingList.contains(p.uniqueId)){
+            jump(p)
+            return
+        }
+
+        val data = addressMap[p.uniqueId]
+
+        //利用可能期間が残っていればそのままテレポートする
+        if (data != null && data.rentDue.after(Date())){
+            jump(p)
+            return
+        }
+
+        //未入居、または期限切れの場合は支払ってからテレポートする
+        addPayment(p,day){ success ->
+            if (!success)return@addPayment
+            jump(p)
+        }
     }
 
     //  retryはアパートの確保後に呼び直したかどうか(確保しても住所が無い場合に無限に繰り返さないため)
