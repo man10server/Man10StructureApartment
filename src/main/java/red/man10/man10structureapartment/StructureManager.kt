@@ -371,6 +371,13 @@ object StructureManager {
             return
         }
 
+        //  利用可能期間が残っているうちは支払わせない(メニュー連打による払いすぎを防ぐ)
+        //  部屋の確保直後はrentDueが確保時刻そのものなので、未来の場合だけを弾く
+        if (data.rentDue.after(Date())){
+            msg(p,"§c§l利用可能期間が残っているため支払いできません(利用可能期間:${SimpleDateFormat("MM月dd日").format(data.rentDue)}まで)")
+            return
+        }
+
         if (!vault.withdraw(p.uniqueId,day* dailyRent)){
             msg(p,"§c電子マネーが足りません")
             return
