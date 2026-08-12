@@ -4,19 +4,13 @@ import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.event.HoverEvent
 import org.bukkit.Bukkit
-import org.bukkit.Location
 import org.bukkit.Material
-import org.bukkit.Tag
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
-import org.bukkit.event.block.BlockBreakEvent
-import org.bukkit.event.block.BlockPlaceEvent
-import org.bukkit.event.player.PlayerBucketEmptyEvent
-import org.bukkit.event.player.PlayerBucketFillEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.inventory.EquipmentSlot
@@ -195,55 +189,6 @@ class Man10StructureApartment : JavaPlugin(),Listener {
         StructureManager.exit(e.player)
         MenuFramework.clearStack(e.player)
         saveStructure(e.player.uniqueId)
-    }
-
-    //アパート内はシュルカーボックスのみ設置できる
-    @EventHandler
-    fun blockPlace(e:BlockPlaceEvent){
-
-        if (!isRestricted(e.player,e.blockPlaced.location))return
-        if (Tag.SHULKER_BOXES.isTagged(e.blockPlaced.type))return
-
-        e.isCancelled = true
-        msg(e.player,"§cアパート内ではシュルカーボックス以外は設置できません")
-    }
-
-    //アパート内はシュルカーボックスのみ破壊できる
-    @EventHandler
-    fun blockBreak(e:BlockBreakEvent){
-
-        if (!isRestricted(e.player,e.block.location))return
-        if (Tag.SHULKER_BOXES.isTagged(e.block.type))return
-
-        e.isCancelled = true
-        msg(e.player,"§cアパート内ではシュルカーボックス以外は壊せません")
-    }
-
-    //バケツはBlockPlaceEventを発生させないので個別に塞ぐ
-    @EventHandler
-    fun bucketEmpty(e:PlayerBucketEmptyEvent){
-
-        if (!isRestricted(e.player,e.block.location))return
-
-        e.isCancelled = true
-        msg(e.player,"§cアパート内では液体を設置できません")
-    }
-
-    @EventHandler
-    fun bucketFill(e:PlayerBucketFillEvent){
-
-        if (!isRestricted(e.player,e.block.location))return
-
-        e.isCancelled = true
-        msg(e.player,"§cアパート内では液体を回収できません")
-    }
-
-    //アパート内での編集制限を受けるかどうか(権限者は制限を受けない)
-    private fun isRestricted(p:Player,location: Location): Boolean {
-
-        if (p.hasPermission(PERMISSION))return false
-
-        return StructureManager.isInsideApartment(location)
     }
 
     //ドアクリックで飛ぶ
