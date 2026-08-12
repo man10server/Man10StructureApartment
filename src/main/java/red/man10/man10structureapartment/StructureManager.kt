@@ -21,7 +21,6 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 
@@ -501,23 +500,6 @@ object StructureManager {
         addressMap.remove(uuid)
         saveAddress()
         return true
-    }
-
-    //  指定した座標がいずれかのアパートの範囲内かどうか
-    //  住所情報は建築用ワールドの座標として扱われるため、他ワールドは常に範囲外
-    fun isInsideApartment(location: Location): Boolean {
-
-        if (location.world != world)return false
-
-        val x = location.blockX
-        val y = location.blockY
-        val z = location.blockZ
-
-        return addressMap.values.any {
-            x in floor(min(it.sx,it.ex)).toInt()..floor(max(it.sx,it.ex)).toInt() &&
-            y in floor(min(it.sy,it.ey)).toInt()..floor(max(it.sy,it.ey)).toInt() &&
-            z in floor(min(it.sz,it.ez)).toInt()..floor(max(it.sz,it.ez)).toInt()
-        }
     }
 
     fun enter(p:Player){
